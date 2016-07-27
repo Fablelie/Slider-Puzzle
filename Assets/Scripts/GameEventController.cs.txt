@@ -1,0 +1,186 @@
+﻿using UnityEngine;
+using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics;
+using UnityEngine.UI;
+using System;
+
+/// <summary>
+/// This class control all the event in game.
+/// </summary>
+public class GameEventController : MonoBehaviour
+{
+    /// <summary>
+    /// Collect gameobject list for check color of gameObject.
+    /// </summary>
+    public List<GameObject> colorList;
+
+    /// <summary>
+    /// Text Stopwatch. for show on UI.
+    /// </summary>
+    public Text stopWatch;
+
+    /// <summary>
+    /// "not" short from Number of times
+    /// </summary>
+    public Text not;
+
+    /// <summary>
+    /// best "not".
+    /// </summary>
+    public Text b_not;
+
+    /// <summary>
+    /// best time.
+    /// </summary>
+    public Text b_time;
+
+    /// <summary>
+    /// Stopwatch. Ummmmm
+    /// </summary>
+    public Stopwatch timer;
+
+    private ObjectController _objCon;
+    private InputController _inputCon;
+    private TimeSpan _ts;
+
+    public const string EXE = "exetestgame";
+    public const string BEST_TIME = "time";
+    public const string BEST_NUMBER_OF_TIMES = "not";
+
+    void Start ()
+    {
+        // Force screen resolution.
+        Screen.SetResolution ( 720, 420, false );
+
+        _objCon = FindObjectOfType<ObjectController>();
+        _inputCon = FindObjectOfType<InputController>();
+
+        // Start timer.
+        timer = new Stopwatch();    
+        timer.Start();
+
+        // loop Check gameobject. 
+        StartCoroutine ( CheckAllGreen ( ) );
+    }
+
+    void Update ()
+    {
+
+        // Get time from the machine.
+        _ts = timer.Elapsed;
+
+        string elapsedTime = String.Format("{0:00}:{1:00}:{2:00}",
+            _ts.Hours, _ts.Minutes, _ts.Seconds);
+
+        // Show the time.
+        stopWatch.text = "เวลาที่ใช้ : " + elapsedTime;
+
+        // Show the "not".
+        not.text = "จำนวนครั้งที่กด : " + _inputCon.timeCount;
+    }        
+
+    /// <summary>
+    /// Check gameover event when gameobject all green.
+    /// </summary>
+    /// <returns></returns>
+    IEnumerator CheckAllGreen ( )
+    {
+        yield return new WaitForSeconds(.5f);
+
+        int count = 0;
+        for (int i = 0; i < colorList.Count; i++)
+        {
+            if (colorList[i].GetComponent<Renderer>().material.color == Color.green)
+            {
+                count++;
+            }
+            else if (colorList[i].GetComponent<Renderer>().material.color == Color.white)
+            {
+                break;
+            }
+
+            if (count >= 15)
+                GameOver ( );
+
+        }
+
+        StartCoroutine(CheckAllGreen());
+    }
+
+    /// <summary>
+    /// Gameover event call playerPrefs for show the BEST time and BEST "not".
+    /// </summary>
+    void GameOver ()
+    {
+        timer.Stop();
+
+        // Create new Playerprefs on first time.
+        if (!PlayerPrefs.HasKey(EXE))
+        {
+            PlayerPrefs.SetString(EXE, "");
+            PlayerPrefs.SetInt(EXE + BEST_NUMBER_OF_TIMES, int.MaxValue);
+            PlayerPrefs.SetFloat(EXE + BEST_TIME, float.MaxValue);
+        }
+
+        //// BEST "not".
+
+        int numberoftime = PlayerPrefs.GetInt(EXE + BEST_NUMBER_OF_TIMES);
+
+        if (numberoftime > _inputCon.timeCount)
+        {
+            numberoftime = _inputCon.timeCount;
+            PlayerPrefs.SetInt(EXE + BEST_NUMBER_OF_TIMES, numberoftime);
+        }
+
+        b_not.text = "BEST Number of times : " + numberoftime;
+
+        //// BEST time.
+
+        float time = PlayerPrefs.GetFloat(EXE + BEST_TIME);
+
+        float timeInGame = _ts.Seconds;
+        timeInGame += _ts.Minutes * 60;
+        timeInGame += ( _ts.Hours * 60 ) * 60;
+
+        if ( time > timeInGame )
+        {
+            time = timeInGame;
+            PlayerPrefs.SetFloat ( EXE + BEST_TIME, time );
+        }
+
+        b_time.text = "BEST Time : " + ((int)time / 60) / 60 + ":" + (int)time / 60 + ":" + time % 60;
+            
+        
+    }
+
+    void OnGUI()
+    {
+        if (GUI.Button(new Rect(100, 10, 100, 30), "Solve"))
+        {
+            _objCon.Solve();
+        }
+
+        if (GUI.Button(new Rect(200, 10, 100, 30), "Reset"))
+        {
+            Reset();
+        }
+
+        if (GUI.Button(new Rect(300, 10, 100, 30), "Del PlayerPref"))
+        {
+            PlayerPrefs.DeleteAll();
+        }
+    }
+
+    /// <summary>
+    /// This is like a Play Again.
+    /// </summary>
+    void Reset()
+    {
+        _inputCon.timeCount = 0;
+        timer.Reset();
+        timer.Start();
+        _objCon.Reset();
+    }
+  
+}
